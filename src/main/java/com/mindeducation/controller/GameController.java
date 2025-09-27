@@ -40,7 +40,7 @@ public class GameController {
     }
     
     @GetMapping("/location/{id}")
-    public String locationDetails(@PathVariable Long id, Model model) {
+    public String locationDetails(@PathVariable("id") Long id, Model model) {
         Location location = locationRepository.findById(id).orElse(null);
         if (location == null) {
             return "redirect:/game";
