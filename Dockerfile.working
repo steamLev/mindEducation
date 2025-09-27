@@ -1,0 +1,24 @@
+# Рабочий Dockerfile с проверенными образами
+FROM maven:3.9.6-eclipse-temurin-21 AS build
+
+WORKDIR /app
+
+# Копируем все файлы проекта
+COPY . .
+
+# Собираем приложение
+RUN mvn clean package -DskipTests
+
+# Финальный образ
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+
+# Копируем собранный jar файл
+COPY --from=build /app/target/*.jar app.jar
+
+# Открываем порт
+EXPOSE 8080
+
+# Запускаем приложение
+ENTRYPOINT ["java", "-jar", "app.jar"]

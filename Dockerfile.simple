@@ -1,0 +1,24 @@
+# Простой Dockerfile для быстрой сборки
+FROM maven:3.9.6-openjdk-21-slim
+
+WORKDIR /app
+
+# Копируем все файлы проекта
+COPY . .
+
+# Собираем приложение
+RUN mvn clean package -DskipTests
+
+# Создаем финальный образ
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+
+# Копируем собранный jar файл
+COPY --from=0 /app/target/*.jar app.jar
+
+# Открываем порт
+EXPOSE 8080
+
+# Запускаем приложение
+ENTRYPOINT ["java", "-jar", "app.jar"]

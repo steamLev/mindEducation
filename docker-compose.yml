@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: mindeducation-postgres
+    environment:
+      POSTGRES_DB: mindeducation
+      POSTGRES_USER: mindeducation
+      POSTGRES_PASSWORD: mindeducation
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mindeducation-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.working
+    container_name: mindeducation-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mindeducation
+      SPRING_DATASOURCE_USERNAME: mindeducation
+      SPRING_DATASOURCE_PASSWORD: mindeducation
+    depends_on:
+      - postgres
+    networks:
+      - mindeducation-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  mindeducation-network:
+    driver: bridge
