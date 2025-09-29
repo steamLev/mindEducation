@@ -21,3 +21,4 @@ public interface GameTaskRepository extends JpaRepository<GameTask, Long> {
     @Query("SELECT gt FROM GameTask gt WHERE gt.isRequired = true AND gt.isActive = true")
     List<GameTask> findRequiredTasks();
 }
+

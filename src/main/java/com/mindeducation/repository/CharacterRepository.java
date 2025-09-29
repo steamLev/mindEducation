@@ -17,3 +17,4 @@ public interface CharacterRepository extends JpaRepository<Character, Long> {
     
     List<Character> findByGenderAndIsActiveTrue(String gender);
 }
+

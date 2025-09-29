@@ -60,7 +60,7 @@ public class AdminController {
     }
     
     @GetMapping("/characters/edit/{id}")
-    public String editCharacter(@PathVariable Long id, Model model) {
+    public String editCharacter(@PathVariable("id") Long id, Model model) {
         Character character = characterRepository.findById(id).orElse(null);
         model.addAttribute("character", character);
         return "admin/character-form";
@@ -87,7 +87,7 @@ public class AdminController {
     }
     
     @GetMapping("/locations/edit/{id}")
-    public String editLocation(@PathVariable Long id, Model model) {
+    public String editLocation(@PathVariable("id") Long id, Model model) {
         Location location = locationRepository.findById(id).orElse(null);
         model.addAttribute("location", location);
         return "admin/location-form";
@@ -120,7 +120,7 @@ public class AdminController {
     }
     
     @GetMapping("/stages/edit/{id}")
-    public String editStage(@PathVariable Long id, Model model) {
+    public String editStage(@PathVariable("id") Long id, Model model) {
         LearningStage stage = learningStageRepository.findById(id).orElse(null);
         List<Location> locations = locationRepository.findByIsActiveTrue();
         

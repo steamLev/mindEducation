@@ -31,3 +31,4 @@ logging:
   level:
     com.mindeducation: DEBUG
     org.springframework.web: DEBUG
+

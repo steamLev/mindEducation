@@ -104,3 +104,4 @@ public class Character {
         this.isActive = isActive;
     }
 }
+

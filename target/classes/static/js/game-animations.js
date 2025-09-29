@@ -359,3 +359,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Экспорт для использования в других модулях
 window.GameAnimations = GameAnimations;
+

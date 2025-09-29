@@ -14,3 +14,4 @@ public interface TaskOptionRepository extends JpaRepository<TaskOption, Long> {
     
     List<TaskOption> findByGameTaskOrderByOrderIndex(GameTask gameTask);
 }
+

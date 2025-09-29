@@ -9,3 +9,4 @@ public class MindEducationApplication {
         SpringApplication.run(MindEducationApplication.class, args);
     }
 }
+

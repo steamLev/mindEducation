@@ -112,3 +112,4 @@ public class Location {
         this.learningStages = learningStages;
     }
 }
+

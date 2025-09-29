@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindCraft - 3D Игра</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #87CEEB;
+            font-family: 'Courier New', monospace;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+
+        #loadingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 300;
+        }
+
+        .loading-spinner {
+            border: 4px solid #333;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #characterSelect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 200;
+            display: none;
+        }
+
+        .character-option {
+            display: inline-block;
+            margin: 10px;
+            padding: 15px;
+            background: #333;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+            pointer-events: auto;
+        }
+
+        .character-option:hover {
+            background: #555;
+        }
+
+        .character-option.selected {
+            background: #4CAF50;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        #startGame {
+            pointer-events: auto;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #startGame:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+<!-- Экран загрузки -->
+<div id="loadingScreen">
+    <div class="loading-spinner"></div>
+    <h2>Загрузка MindCraft...</h2>
+    <p>Подготовка 3D мира Древнего Рима</p>
+</div>
+
+<!-- Выбор персонажа -->
+<div id="characterSelect">
+    <h2>Выберите персонажа</h2>
+    <div class="character-option" data-character="mark">
+        <h3>Марк</h3>
+        <p>12 лет, любознательный мальчик-историк</p>
+    </div>
+    <div class="character-option" data-character="lucia">
+        <h3>Луция</h3>
+        <p>6 лет, веселая и энергичная девочка</p>
+    </div>
+    <button id="startGame">Начать игру</button>
+</div>
+
+<!-- Игровой контейнер -->
+<div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI элементы -->
+    <div id="ui">
+        <div id="hud">
+            <h2>MindCraft - Древний Рим</h2>
+            <div id="playerInfo">
+                <p>Персонаж: <span id="playerName">-</span></p>
+                <p>Локация: <span id="currentLocation">-</span></p>
+                <p>Квест: <span id="currentQuest">-</span></p>
+            </div>
+        </div>
+
+        <div id="controls">
+            <h4>Управление:</h4>
+            <p>WASD - движение</p>
+            <p>Мышь - обзор</p>
+            <p>Пробел - прыжок</p>
+            <p>E - взаимодействие</p>
+        </div>
+    </div>
+</div>
+
+<!-- Подключение библиотек -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.20.0/cannon.min.js"></script>
+
+<!-- Встроенный игровой код -->
+<script>
+    // Простая версия MindCraft игры
+    class SimpleMindCraft {
+        constructor() {
+            this.scene = null;
+            this.camera = null;
+            this.renderer = null;
+            this.world = null;
+            this.player = null;
+            this.isRunning = false;
+            this.clock = new THREE.Clock();
+            this.keys = {
+                forward: false,
+                backward: false,
+                left: false,
+                right: false,
+                jump: false
+            };
+            this.currentCharacter = null;
+            this.mouseRotation = { x: 0, y: 0 };
+            this.isPointerLocked = false;
+        }
+
+        async init() {
+            try {
+                console.log('Инициализация Simple MindCraft...');
+
+                // Сначала показываем экран загрузки
+                this.showLoadingScreen();
+
+                // Даем время на отрисовку экрана загрузки
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                this.setupRenderer();
+                this.setupScene();
+                this.setupLighting();
+                this.setupPhysics();
+                this.setupControls();
+
+                // Скрываем экран загрузки и показываем выбор персонажа
+                setTimeout(() => {
+                    this.hideLoadingScreen();
+                    this.showCharacterSelect();
+                }, 500);
+
+                console.log('Simple MindCraft инициализирован');
+            } catch (error) {
+                console.error('Ошибка инициализации:', error);
+                this.hideLoadingScreen();
+                alert('Ошибка загрузки игры: ' + error.message);
+            }
+        }
+
+        showLoadingScreen() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            loadingScreen.style.display = 'flex';
+        }
+
+        hideLoadingScreen() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            loadingScreen.style.display = 'none';
+        }
+
+        setupRenderer() {
+            const canvas = document.getElementById('gameCanvas');
+            if (!canvas) {
+                throw new Error('Canvas element not found');
+            }
+
+            this.renderer = new THREE.WebGLRenderer({
+                canvas: canvas,
+                antialias: true,
+                alpha: true
+            });
+
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            this.renderer.shadowMap.enabled = true;
+            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            this.renderer.setClearColor(0x87CEEB, 1);
+        }
+
+        setupScene() {
+            this.scene = new THREE.Scene();
+            this.scene.fog = new THREE.Fog(0x87CEEB, 50, 200);
+
+            this.camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            this.camera.position.set(0, 10, 10);
+        }
+
+        setupLighting() {
+            // Основной направленный свет
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(50, 50, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 500;
+            directionalLight.shadow.camera.left = -50;
+            directionalLight.shadow.camera.right = 50;
+            directionalLight.shadow.camera.top = 50;
+            directionalLight.shadow.camera.bottom = -50;
+            this.scene.add(directionalLight);
+
+            // Заполняющий свет
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            this.scene.add(ambientLight);
+        }
+
+        setupPhysics() {
+            this.world = new CANNON.World();
+            this.world.gravity.set(0, -30, 0); // Увеличиваем гравитацию для лучшего ощущения
+            this.world.broadphase = new CANNON.NaiveBroadphase();
+            this.world.solver.iterations = 10;
+            this.world.defaultContactMaterial.friction = 0.3;
+            this.world.defaultContactMaterial.restitution = 0.3;
+        }
+
+        setupControls() {
+            // Обработка клавиатуры
+            document.addEventListener('keydown', (event) => {
+                switch(event.code) {
+                    case 'KeyW': this.keys.forward = true; break;
+                    case 'KeyS': this.keys.backward = true; break;
+                    case 'KeyA': this.keys.left = true; break;
+                    case 'KeyD': this.keys.right = true; break;
+                    case 'Space':
+                        event.preventDefault();
+                        this.keys.jump = true;
+                        break;
+                }
+            });
+
+            document.addEventListener('keyup', (event) => {
+                switch(event.code) {
+                    case 'KeyW': this.keys.forward = false; break;
+                    case 'KeyS': this.keys.backward = false; break;
+                    case 'KeyA': this.keys.left = false; break;
+                    case 'KeyD': this.keys.right = false; break;
+                    case 'Space': this.keys.jump = false; break;
+                }
+            });
+
+            // Обработка мыши
+            document.addEventListener('click', () => {
+                if (!this.isPointerLocked) {
+                    const canvas = document.getElementById('gameCanvas');
+                    canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+                    canvas.requestPointerLock();
+                }
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                this.isPointerLocked = document.pointerLockElement === document.getElementById('gameCanvas');
+            });
+
+            document.addEventListener('mousemove', (event) => {
+                if (this.isPointerLocked && this.player) {
+                    this.handleMouseMove(event);
+                }
+            });
+
+            // Обработка изменения размера окна
+            window.addEventListener('resize', () => {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        handleMouseMove(event) {
+            const sensitivity = 0.002;
+
+            this.mouseRotation.y -= event.movementX * sensitivity;
+            this.mouseRotation.x -= event.movementY * sensitivity;
+
+            // Ограничиваем вертикальный поворот
+            this.mouseRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.mouseRotation.x));
+        }
+
+        showCharacterSelect() {
+            const characterSelect = document.getElementById('characterSelect');
+            characterSelect.style.display = 'block';
+
+            const characterOptions = document.querySelectorAll('.character-option');
+            characterOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    characterOptions.forEach(opt => opt.classList.remove('selected'));
+                    option.classList.add('selected');
+                    this.currentCharacter = option.dataset.character;
+                });
+            });
+
+            document.getElementById('startGame').addEventListener('click', () => {
+                if (this.currentCharacter) {
+                    this.startGame();
+                } else {
+                    alert('Пожалуйста, выберите персонажа!');
+                }
+            });
+        }
+
+        startGame() {
+            const characterSelect = document.getElementById('characterSelect');
+            characterSelect.style.display = 'none';
+
+            this.createPlayer();
+            this.generateWorld();
+            this.updateUI();
+
+            this.isRunning = true;
+            this.gameLoop();
+
+            console.log('Игра началась! Выбран персонаж:', this.currentCharacter);
+        }
+
+        createPlayer() {
+            // Создаем группу для игрока
+            const group = new THREE.Group();
+
+            // Тело персонажа
+            const bodyGeometry = new THREE.BoxGeometry(0.6, 1.8, 0.6);
+            const bodyMaterial = new THREE.MeshLambertMaterial({
+                color: this.currentCharacter === 'lucia' ? 0xE91E63 : 0x4CAF50
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.9;
+            body.castShadow = true;
+            group.add(body);
+
+            // Голова персонажа
+            const headGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            const headMaterial = new THREE.MeshLambertMaterial({
+                color: 0xFFDBB5
+            });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = 1.8;
+            head.castShadow = true;
+            group.add(head);
+
+            this.player = {
+                mesh: group,
+                body: null,
+                velocity: new THREE.Vector3(),
+                isGrounded: false,
+                position: new THREE.Vector3(0, 5, 0)
+            };
+
+            this.scene.add(this.player.mesh);
+
+            // Создаем физическое тело для игрока
+            const shape = new CANNON.Box(new CANNON.Vec3(0.3, 0.9, 0.3));
+            this.player.body = new CANNON.Body({
+                mass: 5,
+                position: new CANNON.Vec3(0, 5, 0)
+            });
+            this.player.body.addShape(shape);
+            this.player.body.linearDamping = 0.9;
+            this.player.body.angularDamping = 0.9;
+            this.world.add(this.player.body);
+
+            // Слушаем столкновения для определения нахождения на земле
+            this.player.body.addEventListener('collide', (event) => {
+                const contact = event.contact;
+
+                // Проверяем, что контакт с поверхностью ниже игрока
+                if (contact.ni.y > 0.5) {
+                    this.player.isGrounded = true;
+                }
+            });
+        }
+
+        generateWorld() {
+            console.log('Генерация мира...');
+
+            // Создаем землю
+            this.createGround();
+
+            // Создаем несколько зданий
+            this.createColosseum(0, 0, -10);
+            this.createForum(8, 0, 8);
+            this.createPantheon(-8, 0, 8);
+
+            console.log('Мир сгенерирован');
+        }
+
+        createGround() {
+            const groundSize = 40;
+            const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize);
+            const groundMaterial = new THREE.MeshLambertMaterial({
+                color: 0x4CAF50,
+                side: THREE.DoubleSide
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            this.scene.add(ground);
+
+            // Физическое тело для земли
+            const groundShape = new CANNON.Plane();
+            const groundBody = new CANNON.Body({ mass: 0 });
+            groundBody.addShape(groundShape);
+            groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+            this.world.add(groundBody);
+        }
+
+        createBlock(x, y, z, type) {
+            const colors = {
+                grass: 0x4CAF50,
+                stone: 0x757575,
+                marble: 0xF5F5F5,
+                brick: 0xD32F2F,
+                wood: 0x8B4513
+            };
+
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshLambertMaterial({
+                color: colors[type] || 0x888888
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x, y + 0.5, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+
+            this.scene.add(mesh);
+
+            // Физическое тело для блока
+            const shape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
+            const body = new CANNON.Body({ mass: 0 });
+            body.addShape(shape);
+            body.position.set(x, y + 0.5, z);
+            this.world.add(body);
+
+            return mesh;
+        }
+
+        createColosseum(x, y, z) {
+            // Простая версия Колизея - круглая структура
+            const radius = 5;
+            const height = 3;
+
+            for (let i = 0; i < 16; i++) {
+                const angle = (i / 16) * Math.PI * 2;
+                const blockX = x + Math.cos(angle) * radius;
+                const blockZ = z + Math.sin(angle) * radius;
+
+                for (let h = 0; h < height; h++) {
+                    this.createBlock(Math.round(blockX), y + h, Math.round(blockZ), 'marble');
+                }
+            }
+        }
+
+        createForum(x, y, z) {
+            // Простой форум - прямоугольное здание
+            for (let i = -2; i <= 2; i++) {
+                for (let j = -2; j <= 2; j++) {
+                    if (Math.abs(i) === 2 || Math.abs(j) === 2) {
+                        for (let h = 0; h < 3; h++) {
+                            this.createBlock(x + i, y + h, z + j, 'stone');
+                        }
+                    }
+                }
+            }
+        }
+
+        createPantheon(x, y, z) {
+            // Простой Пантеон - здание с куполом (полукруг)
+            for (let i = -3; i <= 3; i++) {
+                for (let j = -3; j <= 3; j++) {
+                    if (Math.abs(i) <= 2 && Math.abs(j) <= 2) {
+                        this.createBlock(x + i, y, z + j, 'marble');
+                    }
+                }
+            }
+        }
+
+        updateUI() {
+            const playerName = document.getElementById('playerName');
+            const currentLocation = document.getElementById('currentLocation');
+            const currentQuest = document.getElementById('currentQuest');
+
+            if (this.currentCharacter === 'mark') {
+                playerName.textContent = 'Марк (12 лет)';
+            } else if (this.currentCharacter === 'lucia') {
+                playerName.textContent = 'Луция (6 лет)';
+            }
+
+            currentLocation.textContent = 'Древний Рим';
+            currentQuest.textContent = 'Исследуйте исторические памятники';
+        }
+
+        gameLoop() {
+            if (!this.isRunning) return;
+
+            const deltaTime = Math.min(this.clock.getDelta(), 0.1); // Ограничиваем deltaTime
+
+            // Обновляем физику
+            this.world.step(deltaTime);
+
+            // Обновляем игрока
+            if (this.player) {
+                this.updatePlayer(deltaTime);
+            }
+
+            // Рендерим сцену
+            this.renderer.render(this.scene, this.camera);
+
+            // Следующий кадр
+            requestAnimationFrame(() => this.gameLoop());
+        }
+
+        updatePlayer(deltaTime) {
+            if (!this.player || !this.player.body) return;
+
+            // Обновляем позицию визуального объекта из физического тела
+            this.player.mesh.position.copy(this.player.body.position);
+
+            // Обрабатываем движение
+            this.handleMovement(deltaTime);
+
+            // Обновляем камеру
+            this.updateCamera();
+        }
+
+        handleMovement(deltaTime) {
+            if (!this.player || !this.player.body) return;
+
+            const speed = 15;
+            const velocity = this.player.body.velocity;
+            const moveVector = new CANNON.Vec3(0, 0, 0);
+
+            // Определяем направление движения на основе поворота камеры
+            if (this.keys.forward) {
+                moveVector.z -= Math.cos(this.mouseRotation.y) * speed;
+                moveVector.x -= Math.sin(this.mouseRotation.y) * speed;
+            }
+            if (this.keys.backward) {
+                moveVector.z += Math.cos(this.mouseRotation.y) * speed;
+                moveVector.x += Math.sin(this.mouseRotation.y) * speed;
+            }
+            if (this.keys.left) {
+                moveVector.x -= Math.cos(this.mouseRotation.y) * speed;
+                moveVector.z += Math.sin(this.mouseRotation.y) * speed;
+            }
+            if (this.keys.right) {
+                moveVector.x += Math.cos(this.mouseRotation.y) * speed;
+                moveVector.z -= Math.sin(this.mouseRotation.y) * speed;
+            }
+
+            // Применяем движение по X и Z
+            if (moveVector.length() > 0) {
+                velocity.x = moveVector.x;
+                velocity.z = moveVector.z;
+            } else {
+                // Замедление при отсутствии движения
+                velocity.x *= 0.9;
+                velocity.z *= 0.9;
+            }
+
+            // Прыжок
+            if (this.keys.jump && this.player.isGrounded) {
+                velocity.y = 10;
+                this.player.isGrounded = false;
+            }
+
+            // Сбрасываем флаг прыжка
+            this.keys.jump = false;
+        }
+
+        updateCamera() {
+            if (!this.player || !this.player.body) return;
+
+            const playerPos = this.player.body.position;
+            const distance = 8;
+            const height = 3;
+
+            // Вычисляем позицию камеры за игроком
+            const cameraX = playerPos.x - Math.sin(this.mouseRotation.y) * distance;
+            const cameraY = playerPos.y + height;
+            const cameraZ = playerPos.z - Math.cos(this.mouseRotation.y) * distance;
+
+            this.camera.position.set(cameraX, cameraY, cameraZ);
+            this.camera.lookAt(playerPos.x, playerPos.y + 1, playerPos.z);
+        }
+    }
+
+    // Инициализация игры
+    let game = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('Запуск Simple MindCraft...');
+
+        if (!checkWebGLSupport()) {
+            alert('Ваш браузер не поддерживает WebGL. Пожалуйста, используйте современный браузер.');
+            return;
+        }
+
+        try {
+            game = new SimpleMindCraft();
+            await game.init();
+        } catch (error) {
+            console.error('Критическая ошибка:', error);
+            alert('Не удалось запустить игру: ' + error.message);
+        }
+    });
+
+    function checkWebGLSupport() {
+        try {
+            const canvas = document.createElement('canvas');
+            return !!(window.WebGLRenderingContext &&
+                (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+        } catch (e) {
+            return false;
+        }
+    }
+</script>
+</body>
+</html>

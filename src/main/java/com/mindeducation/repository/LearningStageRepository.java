@@ -21,3 +21,4 @@ public interface LearningStageRepository extends JpaRepository<LearningStage, Lo
     @Query("SELECT ls FROM LearningStage ls WHERE ls.difficultyLevel = :difficulty AND ls.isActive = true")
     List<LearningStage> findByDifficultyLevel(String difficulty);
 }
+

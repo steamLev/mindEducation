@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление локациями - MindEducation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/admin">
+                <i class="fas fa-cogs me-2"></i>Админ панель
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/admin">Главная</a>
+                <a class="nav-link" href="/admin/characters">Персонажи</a>
+                <a class="nav-link" href="/admin/stages">Этапы</a>
+                <a class="nav-link" href="/game">Игра</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Заголовок -->
+    <section class="py-4 bg-success text-white">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-map me-2"></i>Управление локациями
+                </h2>
+                <a href="/admin/locations/new" class="btn btn-light">
+                    <i class="fas fa-plus me-2"></i>Добавить локацию
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Список локаций -->
+    <section class="py-5">
+        <div class="container">
+            <div class="row" th:if="${locations != null and !locations.empty}">
+                <div class="col-md-6 col-lg-4 mb-4" th:each="location : ${locations}">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="card-title" th:text="${location.name}">Название</h5>
+                                <span class="badge" th:classappend="${location.isActive} ? 'bg-success' : 'bg-secondary'"
+                                      th:text="${location.isActive} ? 'Активна' : 'Неактивна'">Статус</span>
+                            </div>
+                            <p class="card-text" th:text="${location.description}">Описание</p>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    <i class="fas fa-history me-1"></i>
+                                    <span th:text="${location.historicalPeriod}">Период</span>
+                                </small>
+                            </p>
+                        </div>
+                        <div class="card-footer">
+                            <div class="btn-group w-100" role="group">
+                                <a th:href="@{/admin/locations/edit/{id}(id=${location.id})}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-edit me-1"></i>Редактировать
+                                </a>
+                                <a th:href="@{/game/location/{id}(id=${location.id})}" 
+                                   class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-eye me-1"></i>Просмотр
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row" th:if="${locations == null or locations.empty}">
+                <div class="col-12 text-center">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Локации не найдены. <a href="/admin/locations/new">Создайте первую локацию</a>.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Футер -->
+    <footer class="bg-dark text-white py-4">
+        <div class="container text-center">
+            <p>&copy; 2024 MindEducation. Админ панель.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+

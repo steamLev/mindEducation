@@ -56,7 +56,7 @@ public class GameController {
     }
     
     @GetMapping("/stage/{id}")
-    public String stageDetails(@PathVariable Long id, Model model) {
+    public String stageDetails(@PathVariable("id") Long id, Model model) {
         LearningStage stage = learningStageRepository.findById(id).orElse(null);
         if (stage == null) {
             return "redirect:/game";
@@ -68,7 +68,7 @@ public class GameController {
     }
     
     @GetMapping("/character/{id}")
-    public String characterDetails(@PathVariable Long id, Model model) {
+    public String characterDetails(@PathVariable("id") Long id, Model model) {
         Character character = characterRepository.findById(id).orElse(null);
         if (character == null) {
             return "redirect:/game";
@@ -78,4 +78,13 @@ public class GameController {
         
         return "game/character";
     }
+    
+    @GetMapping("/mindcraft")
+    public String mindcraftGame(Model model) {
+        // Получить список персонажей для игры
+        List<Character> characters = characterRepository.findByIsActiveTrue();
+        model.addAttribute("characters", characters);
+        return "game/mindcraft";
+    }
+    
 }

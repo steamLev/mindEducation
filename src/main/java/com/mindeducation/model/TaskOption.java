@@ -87,3 +87,4 @@ public class TaskOption {
         this.gameTask = gameTask;
     }
 }
+
