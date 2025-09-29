@@ -182,17 +182,15 @@
 
 <!-- Подключение библиотек -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.20.0/cannon.min.js"></script>
 
 <!-- Встроенный игровой код -->
 <script>
-    // Простая версия MindCraft игры
+    // Простая версия MindCraft игры БЕЗ физики
     class SimpleMindCraft {
         constructor() {
             this.scene = null;
             this.camera = null;
             this.renderer = null;
-            this.world = null;
             this.player = null;
             this.isRunning = false;
             this.clock = new THREE.Clock();
@@ -206,11 +204,19 @@
             this.currentCharacter = null;
             this.mouseRotation = { x: 0, y: 0 };
             this.isPointerLocked = false;
+            this.playerPosition = new THREE.Vector3(0, 5, 0);
+            this.playerVelocity = new THREE.Vector3(0, 0, 0);
+            this.isGrounded = false;
         }
 
         async init() {
             try {
                 console.log('Инициализация Simple MindCraft...');
+
+                // Проверяем Three.js
+                if (typeof THREE === 'undefined') {
+                    throw new Error('Three.js не загружен');
+                }
 
                 // Сначала показываем экран загрузки
                 this.showLoadingScreen();
@@ -221,7 +227,6 @@
                 this.setupRenderer();
                 this.setupScene();
                 this.setupLighting();
-                this.setupPhysics();
                 this.setupControls();
 
                 // Скрываем экран загрузки и показываем выбор персонажа
@@ -300,23 +305,14 @@
             this.scene.add(ambientLight);
         }
 
-        setupPhysics() {
-            this.world = new CANNON.World();
-            this.world.gravity.set(0, -30, 0); // Увеличиваем гравитацию для лучшего ощущения
-            this.world.broadphase = new CANNON.NaiveBroadphase();
-            this.world.solver.iterations = 10;
-            this.world.defaultContactMaterial.friction = 0.3;
-            this.world.defaultContactMaterial.restitution = 0.3;
-        }
-
         setupControls() {
             // Обработка клавиатуры
             document.addEventListener('keydown', (event) => {
                 switch(event.code) {
-                    case 'KeyW': this.keys.forward = true; break;
-                    case 'KeyS': this.keys.backward = true; break;
-                    case 'KeyA': this.keys.left = true; break;
-                    case 'KeyD': this.keys.right = true; break;
+                    case 'KeyW': this.keys.backward = true; break;
+                    case 'KeyS': this.keys.forward = true; break;
+                    case 'KeyA': this.keys.right = true; break;
+                    case 'KeyD': this.keys.left = true; break;
                     case 'Space':
                         event.preventDefault();
                         this.keys.jump = true;
@@ -326,10 +322,10 @@
 
             document.addEventListener('keyup', (event) => {
                 switch(event.code) {
-                    case 'KeyW': this.keys.forward = false; break;
-                    case 'KeyS': this.keys.backward = false; break;
-                    case 'KeyA': this.keys.left = false; break;
-                    case 'KeyD': this.keys.right = false; break;
+                    case 'KeyW': this.keys.backward = false; break;
+                    case 'KeyS': this.keys.forward = false; break;
+                    case 'KeyA': this.keys.right = false; break;
+                    case 'KeyD': this.keys.left = false; break;
                     case 'Space': this.keys.jump = false; break;
                 }
             });
@@ -433,34 +429,10 @@
 
             this.player = {
                 mesh: group,
-                body: null,
-                velocity: new THREE.Vector3(),
-                isGrounded: false,
-                position: new THREE.Vector3(0, 5, 0)
+                position: this.playerPosition.clone()
             };
 
             this.scene.add(this.player.mesh);
-
-            // Создаем физическое тело для игрока
-            const shape = new CANNON.Box(new CANNON.Vec3(0.3, 0.9, 0.3));
-            this.player.body = new CANNON.Body({
-                mass: 5,
-                position: new CANNON.Vec3(0, 5, 0)
-            });
-            this.player.body.addShape(shape);
-            this.player.body.linearDamping = 0.9;
-            this.player.body.angularDamping = 0.9;
-            this.world.add(this.player.body);
-
-            // Слушаем столкновения для определения нахождения на земле
-            this.player.body.addEventListener('collide', (event) => {
-                const contact = event.contact;
-
-                // Проверяем, что контакт с поверхностью ниже игрока
-                if (contact.ni.y > 0.5) {
-                    this.player.isGrounded = true;
-                }
-            });
         }
 
         generateWorld() {
@@ -488,13 +460,6 @@
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             this.scene.add(ground);
-
-            // Физическое тело для земли
-            const groundShape = new CANNON.Plane();
-            const groundBody = new CANNON.Body({ mass: 0 });
-            groundBody.addShape(groundShape);
-            groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-            this.world.add(groundBody);
         }
 
         createBlock(x, y, z, type) {
@@ -516,13 +481,6 @@
             mesh.receiveShadow = true;
 
             this.scene.add(mesh);
-
-            // Физическое тело для блока
-            const shape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
-            const body = new CANNON.Body({ mass: 0 });
-            body.addShape(shape);
-            body.position.set(x, y + 0.5, z);
-            this.world.add(body);
 
             return mesh;
         }
@@ -587,9 +545,6 @@
 
             const deltaTime = Math.min(this.clock.getDelta(), 0.1); // Ограничиваем deltaTime
 
-            // Обновляем физику
-            this.world.step(deltaTime);
-
             // Обновляем игрока
             if (this.player) {
                 this.updatePlayer(deltaTime);
@@ -603,57 +558,55 @@
         }
 
         updatePlayer(deltaTime) {
-            if (!this.player || !this.player.body) return;
-
-            // Обновляем позицию визуального объекта из физического тела
-            this.player.mesh.position.copy(this.player.body.position);
+            if (!this.player) return;
 
             // Обрабатываем движение
             this.handleMovement(deltaTime);
+
+            // Обновляем позицию игрока
+            this.player.mesh.position.copy(this.playerPosition);
 
             // Обновляем камеру
             this.updateCamera();
         }
 
         handleMovement(deltaTime) {
-            if (!this.player || !this.player.body) return;
-
-            const speed = 15;
-            const velocity = this.player.body.velocity;
-            const moveVector = new CANNON.Vec3(0, 0, 0);
+            const speed = 10;
+            const moveVector = new THREE.Vector3(0, 0, 0);
 
             // Определяем направление движения на основе поворота камеры
             if (this.keys.forward) {
-                moveVector.z -= Math.cos(this.mouseRotation.y) * speed;
-                moveVector.x -= Math.sin(this.mouseRotation.y) * speed;
+                moveVector.z -= Math.cos(this.mouseRotation.y) * speed * deltaTime;
+                moveVector.x -= Math.sin(this.mouseRotation.y) * speed * deltaTime;
             }
             if (this.keys.backward) {
-                moveVector.z += Math.cos(this.mouseRotation.y) * speed;
-                moveVector.x += Math.sin(this.mouseRotation.y) * speed;
+                moveVector.z += Math.cos(this.mouseRotation.y) * speed * deltaTime;
+                moveVector.x += Math.sin(this.mouseRotation.y) * speed * deltaTime;
             }
             if (this.keys.left) {
-                moveVector.x -= Math.cos(this.mouseRotation.y) * speed;
-                moveVector.z += Math.sin(this.mouseRotation.y) * speed;
+                moveVector.x -= Math.cos(this.mouseRotation.y) * speed * deltaTime;
+                moveVector.z += Math.sin(this.mouseRotation.y) * speed * deltaTime;
             }
             if (this.keys.right) {
-                moveVector.x += Math.cos(this.mouseRotation.y) * speed;
-                moveVector.z -= Math.sin(this.mouseRotation.y) * speed;
+                moveVector.x += Math.cos(this.mouseRotation.y) * speed * deltaTime;
+                moveVector.z -= Math.sin(this.mouseRotation.y) * speed * deltaTime;
             }
 
-            // Применяем движение по X и Z
-            if (moveVector.length() > 0) {
-                velocity.x = moveVector.x;
-                velocity.z = moveVector.z;
+            // Применяем движение
+            this.playerPosition.add(moveVector);
+
+            // Простая гравитация
+            if (this.playerPosition.y > 1) {
+                this.playerPosition.y -= 15 * deltaTime;
             } else {
-                // Замедление при отсутствии движения
-                velocity.x *= 0.9;
-                velocity.z *= 0.9;
+                this.playerPosition.y = 1;
+                this.isGrounded = true;
             }
 
             // Прыжок
-            if (this.keys.jump && this.player.isGrounded) {
-                velocity.y = 10;
-                this.player.isGrounded = false;
+            if (this.keys.jump && this.isGrounded) {
+                this.playerPosition.y += 8;
+                this.isGrounded = false;
             }
 
             // Сбрасываем флаг прыжка
@@ -661,9 +614,9 @@
         }
 
         updateCamera() {
-            if (!this.player || !this.player.body) return;
+            if (!this.player) return;
 
-            const playerPos = this.player.body.position;
+            const playerPos = this.playerPosition;
             const distance = 8;
             const height = 3;
 
